@@ -1,0 +1,341 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsive Local Chat with Direct Messaging</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            box-sizing: border-box;
+            background-color: #f4f4f4;
+        }
+
+        #container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 900px;
+            height: 100%;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            background: #fff;
+        }
+
+        #chat-container {
+            display: flex;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        /* Chat Box */
+        #chat-section {
+            flex: 2;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #chat-box {
+            border: 1px solid #ccc;
+            padding: 10px;
+            background: #fafafa;
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            height: 70%;
+        }
+
+        /* Active User List on the Right */
+        #active-users {
+            flex: 1;
+            border-left: 1px solid #ddd;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            background: #fafafa;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #user-list {
+            list-style: none;
+            padding: 0;
+            width: 100%;
+            text-align: center;
+        }
+
+            #user-list li {
+                padding: 8px;
+                border-bottom: 1px solid #eee;
+            }
+
+        /* Login Container */
+        #login-container {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        /* Form and Input Styles */
+        input[type="text"],
+        input[type="password"],
+        #message {
+            padding: 8px;
+            width: 100%;
+            max-width: 300px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px 0;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+            button:hover {
+                background-color: #45a049;
+            }
+
+        /* Responsive Layout */
+        @media (max-width: 600px) {
+            #container {
+                flex-direction: column;
+                height: 100%;
+                max-width: 100%;
+            }
+
+            #chat-container {
+                flex-direction: column;
+            }
+
+            #active-users {
+                order: -1;
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid #ddd;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="container">
+        <!-- Login Section -->
+        <div id="login-container">
+            <h3>Login</h3>
+            <input type="text" id="login-username" placeholder="Username">
+            <input type="password" id="login-password" placeholder="Password">
+            <button onclick="login()">Login</button>
+            <p id="login-error" style="color: red;"></p>
+        </div>
+
+        <!-- Chat Section -->
+        <div id="chat-container">
+            <!-- Chat Box and Message Input -->
+            <div id="chat-section">
+                <h3>Chat Room</h3>
+                <div id="chat-box"></div>
+                <input type="text" id="message" placeholder="Type a message">
+                <button onclick="sendMessage()">Send</button>
+                <button onclick="logout()">Logout</button>
+            </div>
+
+            <!-- Active Users List -->
+            <div id="active-users">
+                <h4>Active Users</h4>
+                <ul id="user-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const loginContainer = document.getElementById("login-container");
+        const chatContainer = document.getElementById("chat-container");
+        const chatBox = document.getElementById("chat-box");
+        const messageInput = document.getElementById("message");
+        const loginError = document.getElementById("login-error");
+        const userList = document.getElementById("user-list");
+
+        function checkLogin() {
+            const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+            if (loggedInUser) {
+                loadChat();
+                loginContainer.style.display = "none";
+                chatContainer.style.display = "flex";
+                updateActivity();
+                setInterval(updateActivity, 10000);
+                setInterval(refreshActiveUsers, 10000);
+            } else {
+                loginContainer.style.display = "block";
+                chatContainer.style.display = "none";
+            }
+        }
+
+        function login() {
+            const username = document.getElementById("login-username").value.trim();
+            const password = document.getElementById("login-password").value.trim();
+
+            if (!username || !password) {
+                loginError.textContent = "Please enter a username and password.";
+                return;
+            }
+
+            const users = JSON.parse(localStorage.getItem("users") || "[]");
+            const existingUser = users.find(user => user.username === username);
+
+            if (existingUser) {
+                if (existingUser.password === password) {
+                    localStorage.setItem("loggedInUser", JSON.stringify(existingUser));
+                    loadChat();
+                    loginContainer.style.display = "none";
+                    chatContainer.style.display = "flex";
+                    updateActivity();
+                    setInterval(updateActivity, 10000);
+                    setInterval(refreshActiveUsers, 10000);
+                } else {
+                    loginError.textContent = "Incorrect password. Please try again.";
+                }
+            } else {
+                const newUser = { username, password };
+                users.push(newUser);
+                localStorage.setItem("users", JSON.stringify(users));
+                localStorage.setItem("loggedInUser", JSON.stringify(newUser));
+
+                loadChat();
+                loginContainer.style.display = "none";
+                chatContainer.style.display = "flex";
+                updateActivity();
+                setInterval(updateActivity, 10000);
+                setInterval(refreshActiveUsers, 10000);
+            }
+        }
+
+        function loadChat() {
+            chatBox.innerHTML = "";
+            const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+            const username = loggedInUser.username;
+            const chatHistory = JSON.parse(localStorage.getItem("chatHistory") || "[]");
+
+            chatHistory.forEach(({ sender, recipient, message, private }) => {
+                if (!private || sender === username || recipient === username) {
+                    displayMessage(sender, message, recipient);
+                }
+            });
+        }
+
+        function saveMessage(newMessage) {
+            const chatHistory = JSON.parse(localStorage.getItem("chatHistory") || "[]");
+            chatHistory.push(newMessage);
+            localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
+        }
+
+        function displayMessage(sender, message, recipient = null) {
+            const messageDiv = document.createElement("div");
+
+            if (recipient) {
+                // Private message
+                messageDiv.textContent = `[Private] ${sender} -> ${recipient}: ${message}`;
+                messageDiv.style.color = "blue";
+            } else {
+                // Public message
+                messageDiv.textContent = `${sender}: ${message}`;
+            }
+
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+            const username = loggedInUser.username;
+
+            if (message.startsWith("/msg ")) {
+                // Parse direct message
+                const parts = message.split(" ");
+                if (parts.length >= 3) {
+                    const recipient = parts[1];
+                    const privateMessage = parts.slice(2).join(" ");
+
+                    const newMessage = { sender: username, recipient, message: privateMessage, private: true };
+                    saveMessage(newMessage);
+                    displayMessage(username, privateMessage, recipient);
+                } else {
+                    alert("Invalid /msg format. Use /msg username message");
+                }
+            } else {
+                // Public message
+                const newMessage = { sender: username, recipient: null, message, private: false };
+                saveMessage(newMessage);
+                displayMessage(username, message);
+            }
+
+            messageInput.value = "";
+        }
+
+        window.addEventListener("storage", (event) => {
+            if (event.key === "chatHistory") loadChat();
+            if (event.key === "activeUsers") refreshActiveUsers();
+        });
+
+        function logout() {
+            const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+            const activeUsers = JSON.parse(localStorage.getItem("activeUsers") || "{}");
+            delete activeUsers[loggedInUser.username];
+            localStorage.setItem("activeUsers", JSON.stringify(activeUsers));
+
+            localStorage.removeItem("loggedInUser");
+            checkLogin();
+        }
+
+        function updateActivity() {
+            const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+            const activeUsers = JSON.parse(localStorage.getItem("activeUsers") || "{}");
+            activeUsers[loggedInUser.username] = Date.now();
+            localStorage.setItem("activeUsers", JSON.stringify(activeUsers));
+        }
+
+        function refreshActiveUsers() {
+            const activeUsers = JSON.parse(localStorage.getItem("activeUsers") || "{}");
+            const threshold = Date.now() - 120000;
+            const updatedActiveUsers = {};
+
+            for (const [username, lastActive] of Object.entries(activeUsers)) {
+                if (lastActive > threshold) {
+                    updatedActiveUsers[username] = lastActive;
+                }
+            }
+
+            localStorage.setItem("activeUsers", JSON.stringify(updatedActiveUsers));
+
+            userList.innerHTML = "";
+            Object.keys(updatedActiveUsers).forEach(username => {
+                const userItem = document.createElement("li");
+                userItem.textContent = username;
+                userList.appendChild(userItem);
+            });
+        }
+
+        checkLogin();
+    </script>
+</body>
+</html>
